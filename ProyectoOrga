@@ -2,7 +2,8 @@
 	titulo: .asciiz "Proyecto Organización\nPrimer Parcial\n"
 	menuString: .asciiz "Ingrese una opción del menú\n1.-Suma en Decimal\n2.-Suma en hexadecimal\n3.-Suma Mixta\nIngrese una opción\n"
 	numeroActual: .word #Utilizar s1, contiene el número actual en base a los digitos capturados
-	listaNumeros: .space 2000 #Utilizar s2, contiene todos los números a sumar en memoria
+	listaNumeros: .space 2000 #Utilizar s2, contiene todos los números a sumar en memoria}
+	errorOpcion: .asciiz "\nOPCIÓN INVALIDA\n"
 	
 .text
 	#MUESTRA EL SALUDO	
@@ -20,15 +21,25 @@
 		li $v0,12 #codigo de input del sistema para leer caracter
 		syscall
 		add $s0,$v0,$zero
-		jal verificarDigito
+		li $a0,'1'
+		li $a1,'3'
+		jal esDigito
+		add $t0,$v0,$zero #copio el resultado
+		beq $zero,$t0,opcionIncorrecta	#si la opción es incorrecta muestra error
 		
 		j terminarPrograma
-	#VERIFICA SI S0(CARACTER ACTUAL) CONTIENE UN DÍGITO
-	verificarDigito:
-		slti $t0,$s0,'0'  #Comparo si el caracter enviado es menor al valor del caracter '0'
+		opcionIncorrecta:
+			la $a0,errorOpcion #imprime el mensaje de error de opción
+			li $v0,4
+			syscall
+			j menu
+	#VERIFICA SI $s0(CARACTER ACTUAL) CONTIENE UN DÍGITO DENTRO DEL RANGO DE $a0 Y $a1
+	#RETORNA 1(uno) si es correcto y 0(cero) si es incorrecto
+	esDigito:
+		slt $t0,$s0,$a0  #Comparo si el caracter enviado es menor al valor del caracter '0'
 		li $t1,1
 		beq  $t0,$t1,digitoInvalido #si el resultado de la comparacion es menor(=1) entonces no es digito
-		li $t1,'9'
+		add $t1,$zero,$a1
 		bgt $s0,$t1,digitoInvalido  #si el resultado de la comparacion es mayor entonces no es digito
 		addi $v0,$zero,1 #retorna 1 si el digito es valido
 		jr $ra
