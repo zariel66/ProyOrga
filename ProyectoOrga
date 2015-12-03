@@ -2,8 +2,9 @@
 	titulo: .asciiz "Proyecto Organización\nPrimer Parcial\n"
 	menuString: .asciiz "Ingrese una opción del menú\n1.-Suma en Decimal\n2.-Suma en hexadecimal\n3.-Suma Mixta\nIngrese una opción\n"
 	numeroActual: .word #Utilizar s1, contiene el número actual en base a los digitos capturados
-	listaNumeros: .space 2000 #Utilizar s2, contiene todos los números a sumar en memoria}
 	errorOpcion: .asciiz "\nOPCIÓN INVÁLIDA\n"
+	stringOpcion1: .asciiz "\nIngrese número enteros separados por enter\n"
+	opcionError1: .asciiz "\n¡¡ERROR!!El valor ingresado no es un entero\n"
 	cadena: .asciiz
 	
 .text
@@ -21,13 +22,13 @@
 	opciones:
 		li $v0,12 #codigo de input del sistema para leer caracter
 		syscall
-		add $s0,$v0,$zero
+		add $a3,$v0,$zero #cargo el caracter en el registro $a3
 		li $a0,'1'
 		li $a1,'3'
 		jal caracterEnRango
 		add $t0,$v0,$zero #copio el resultado
 		beq $zero,$t0,opcionIncorrecta	#si la opción es incorrecta muestra error
-		andi $s0,$s0, 0x0F #convierto el valor numérico del caracter a su correspondiente número
+		andi $s0,$a3, 0x0F #convierto el valor numérico del caracter a su correspondiente número
 		addi $t0,$zero,1
 		addi $t1,$zero,2
 		addi $t2,$zero,3
@@ -41,14 +42,14 @@
 			li $v0,4
 			syscall
 			j menu
-	#VERIFICA SI $s0(CARACTER ACTUAL) CONTIENE UN DÍGITO DENTRO DEL RANGO DE $a0 Y $a1
+	#VERIFICA SI $a3(CARACTER ACTUAL) CONTIENE UN DÍGITO DENTRO DEL RANGO DE $a0 Y $a1
 	#RETORNA 1(uno) si es correcto y 0(cero) si es incorrecto
 	caracterEnRango:
-		slt $t0,$s0,$a0  #Comparo si el caracter enviado es menor al valor del caracter '0'
+		slt $t0,$a3,$a0  #Comparo si el caracter enviado es menor al valor del caracter '0'
 		li $t1,1
 		beq  $t0,$t1,caracterInvalido #si el resultado de la comparacion es menor(=1) entonces no es digito
 		add $t1,$zero,$a1
-		bgt $s0,$t1,caracterInvalido  #si el resultado de la comparacion es mayor entonces no es digito
+		bgt $a3,$t1,caracterInvalido  #si el resultado de la comparacion es mayor entonces no es digito
 		addi $v0,$zero,1 #retorna 1 si el digito es valido
 		jr $ra
 		caracterInvalido:
@@ -59,11 +60,49 @@
 		syscall
 		jr $ra
 	opcion1:
+		addi $s0,$zero,0 #registro donde se almacena el resultado de la suma
+		addi $v0,$zero,4
+		la $a0,stringOpcion1 #imprimo el dialogo de la opción 1
+		syscall
+		j pedirInputEntero
+	pedirInputEntero:
 		addi $v0,$zero,8
 		la $a0,cadena
-		la $a1,8
+		li $a1,8 #input de la cadena
 		syscall
-		j terminarPrograma
+		lb $t2,0($a0)
+		li $t3,' '
+		beq $t2,$t3,mostrarResultadoDecimal
+		addi $t0,$a0,0 #cadena
+		addi $t1,$zero,0 #iterador
+		j enteroValido
+	enteroValido:
+		add $t1,$t1,$t0 #recupero la direccion actual en la posicion i
+		lb $a3,0($t1) #recupero el caracter
+		li $t2,'\0'
+		beq $t2,$a3,stringToDecimal #SI ES FIN DE CADENA SE PASA AL PROCESO DE CONVERSIÓN Y SUMA
+		addi $sp,$sp,-8 # genero espacio en la pila
+		sw $t1,4($sp)
+		sw $t0,0($sp)
+		li $a0,'0'
+		li $a1,'9'
+		jal caracterEnRango
+		lw $t1,4($sp)
+		lw $t0,0($sp)
+		addi $sp,$sp,8 #recupero espacio en la pila
+		beq $zero,$v0,errorEntero
+		sub $t1,$t1,$t0
+		addi $t1,$t1,1 #incremento el iterador
+		j enteroValido
+		errorEntero:
+			li $v0,4
+			la $a0,opcionError1 #impresion de error de input
+			syscall
+			j pedirInputEntero			
+		stringToDecimal:
+			j terminarPrograma
+		mostrarResultadoDecimal:
+			j terminarPrograma
 	opcion2:
 		j terminarPrograma
 	opcion3:
