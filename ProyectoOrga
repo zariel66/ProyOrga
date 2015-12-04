@@ -4,7 +4,8 @@
 	numeroActual: .word #Utilizar s1, contiene el número actual en base a los digitos capturados
 	errorOpcion: .asciiz "\nOPCIÓN INVÁLIDA\n"
 	stringOpcion1: .asciiz "\nIngrese número enteros separados por enter\n"
-	opcionError1: .asciiz "\n¡¡ERROR!!El valor ingresado no es un entero\n"
+	opcionError1: .asciiz "\n¡¡ERROR!!El valor ingresado no es un entero. Vuelva a ingresar un valor:\n"
+	resultadoSuma: .asciiz "\nEl resultado de la suma es:\n"
 	cadena: .asciiz
 	
 .text
@@ -64,45 +65,73 @@
 		addi $v0,$zero,4
 		la $a0,stringOpcion1 #imprimo el dialogo de la opción 1
 		syscall
-		j pedirInputEntero
+		loop1: #mientras hayan nuevas entradas sigo pidiendo números
+			jal pedirInputEntero #pido el input
+			beq $v0,$zero,MostrarResultadoEntero #si retorna 0 muestro el resultado
+			li $t0,-1
+			beq $v0,$t0,loop1
+			add $s0,$s0,$v0
+			j loop1
 	pedirInputEntero:
 		addi $v0,$zero,8
 		la $a0,cadena
 		li $a1,8 #input de la cadena
 		syscall
-		lb $t2,0($a0)
-		li $t3,' '
-		beq $t2,$t3,mostrarResultadoDecimal
+		lb $t0,0($a0)
+		li $t1,'\0'
+		beq $t0,$t1,terminarInput #verifico si el usuario solo dio enter
+		addi $sp,$sp,-4
+		sw $ra,0($sp) #guardo la dirección de retorno en la pila
+		jal obtenerEntero
+		lw $ra,0($sp) #recupero la dirección de retorno
+		addi $sp,$sp,4
+		jr $ra
+		terminarInput:
+			li $v0,0
+			jr $ra
+	obtenerEntero:
 		addi $t0,$a0,0 #cadena
 		addi $t1,$zero,0 #iterador
-		j enteroValido
-	enteroValido:
-		add $t1,$t1,$t0 #recupero la direccion actual en la posicion i
-		lb $a3,0($t1) #recupero el caracter
-		li $t2,'\0'
-		beq $t2,$a3,stringToDecimal #SI ES FIN DE CADENA SE PASA AL PROCESO DE CONVERSIÓN Y SUMA
-		addi $sp,$sp,-8 # genero espacio en la pila
-		sw $t1,4($sp)
-		sw $t0,0($sp)
-		li $a0,'0'
-		li $a1,'9'
-		jal caracterEnRango
-		lw $t1,4($sp)
-		lw $t0,0($sp)
-		addi $sp,$sp,8 #recupero espacio en la pila
-		beq $zero,$v0,errorEntero
-		sub $t1,$t1,$t0
-		addi $t1,$t1,1 #incremento el iterador
-		j enteroValido
+		addi $t4,$zero,0 #número
+		loop2:
+			add $t1,$t1,$t0 #recupero la direccion actual en la posicion i
+			lb $a3,0($t1) #recupero el caracter
+			li $t2,'\0'
+			li $t3,'\n'
+			beq $t2,$a3,devolverEntero #SI ES FIN DE CADENA DEVUELVE EL NÚMERO
+			beq $t3,$a3,devolverEntero #SI ES UN ENTER DE CADENA DEVUELVE EL NÚMERO
+			addi $sp,$sp,-12 # genero espacio en la pila	
+			sw $t1,8($sp)
+			sw $t0,4($sp)
+			sw $ra,0($sp)
+			li $a0,'0'
+			li $a1,'9'
+			jal caracterEnRango
+			lw $t1,8($sp)
+			lw $t0,4($sp)
+			lw $ra,0($sp)
+			addi $sp,$sp,12 #recupero espacio en la pila
+			beq $zero,$v0,errorEntero
+			sub $t1,$t1,$t0
+			andi $t2,$a3,0x0F
+			addi $t3,$t4,0
+			sll $t4,$t4,3 #multiplico por 8
+			add $t3,$t3,$t3 #sumo dos veces más equivalente a multiplicar por 10
+  			add $t4,$t4,$t3
+  			add $t4,$t4,$t2	#sumo el caracter actual
+			addi $t1,$t1,1 #incremento el iterador
+			j loop2
+		devolverEntero:
+			addi $v0,$t4,0 #devuelve el numero en $t4
+			jr $ra
 		errorEntero:
 			li $v0,4
 			la $a0,opcionError1 #impresion de error de input
 			syscall
-			j pedirInputEntero			
-		stringToDecimal:
-			j terminarPrograma
-		mostrarResultadoDecimal:
-			j terminarPrograma
+			li $v0,-1
+			jr $ra
+			
+	
 	opcion2:
 		j terminarPrograma
 	opcion3:
@@ -110,7 +139,14 @@
 	terminarPrograma:
 		li $v0,10 #termina el programa
 		syscall
-	
+	MostrarResultadoEntero:
+		la $a0,resultadoSuma
+		li $v0,4 #constante 4 que activa impresion de cadena por pantalla
+		syscall
+		addi $a0,$s0,0
+		li $v0,1 #constante 1 que activa impresion de entero por pantalla
+		syscall
+		j terminarPrograma
 		
 		
 	
