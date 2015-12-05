@@ -1,12 +1,18 @@
 .data
 	titulo: .asciiz "Proyecto Organización\nPrimer Parcial\n"
-	menuString: .asciiz "Ingrese una opción del menú\n1.-Suma en Decimal\n2.-Suma en hexadecimal\n3.-Suma Mixta\nIngrese una opción\n"
+	menuString: .asciiz "\nIngrese una opción del menú\n1.-Suma en Decimal\n2.-Suma en hexadecimal\n3.-Suma Mixta\nIngrese una opción\n"
 	numeroActual: .word #Utilizar s1, contiene el número actual en base a los digitos capturados
 	errorOpcion: .asciiz "\nOPCIÓN INVÁLIDA\n"
 	stringOpcion1: .asciiz "\nIngrese número enteros separados por enter\n"
 	opcionError1: .asciiz "\n¡¡ERROR!!El valor ingresado no es un entero. Vuelva a ingresar un valor:\n"
 	resultadoSuma: .asciiz "\nEl resultado de la suma es:\n"
-	cadena: .asciiz
+	cadena: .space 64
+	msg_1:	.asciiz "\nIngrese un número hexadecimal, o presione enter para obtener el resultado \n"
+	msg_2:  .asciiz "\La suma total de los números ingresados es: "
+	msg_3:  .asciiz "\n La suma excede los 32 bits. El resultado es incorrecto. \n"
+	newLine: .asciiz "\n"
+	msg_Error_1: .asciiz "El número ingresado no es hexadecimal.\n"
+	msg_Error_2: .asciiz " \nPor favor, ingrese el prefijo 0x antes del número hexadecimal!\n"
 	
 .text
 	#MUESTRA EL SALUDO	
@@ -133,7 +139,139 @@
 			
 	
 	opcion2:
-		j terminarPrograma
+		hex:	la $a0, msg_1
+			li $v0,4
+			syscall
+
+			li $v0,8
+			la $a0,cadena
+			li $a1,64 
+			syscall				
+																					
+			add $a2, $a0, $0		
+			li $a1, 0
+			lb $a0, 0($a2)	
+			li $t0, 10
+			beq $a0, $t0, Exit_hex
+			lb $a0, 1($a2)	
+			li $t1, 120
+			bne $a0, $t1,Err_2
+			
+	    		li $s6, 0
+	    	strlen:	add $t2, $s6, $a2
+	    		lb $t1,0($t2)
+	    		addi $s6,$s6,1				
+			bne $t1,$t0, strlen	
+			addi $s6, $s6,-4
+			
+		hexSum:	add $t0, $a2, $a1
+			lb $a0, 2($t0)		
+			li $t0, 10
+			beq $a0, 10, hex
+							
+		hexVal:	li $t6,96
+			li $t7,64
+			li $t8,47
+			slt $t0,$t6,$a0				
+			slti $t1,$a0,103	
+			slt $t2,$t7,$a0
+			slti $t3,$a0,71
+			slt $t4,$t8,$a0
+			slti $t5,$a0,58
+			and  $t1,$t0,$t1 
+			and  $t3,$t2,$t3 
+			and  $t5,$t4,$t5 
+			or $t0, $t1, $t3
+			or $v0, $t0, $t5
+			beq $v0,$zero,Err_1
+			
+		hexC_0:	li $t6,96
+			li $t7,64
+			li $t8,47
+			slt $t0,$t6,$a0				
+			slti $t1,$a0,103	
+			and $t1,$t0,$t1 
+			bne $t1, $zero, hexC_1
+			slt $t2,$t7,$a0
+			slti $t3,$a0,71
+			and $t3,$t2,$t3 	
+			bne $t3, $zero, hexC_2
+			addi $a0, $a0, -48
+			j Cont
+		hexC_1:	addi $a0, $a0, -87
+			j Cont
+		hexC_2:	addi $a0, $a0, -55
+			j Cont
+			
+		Cont: 	addi $sp, $sp, -12
+			sw $a1, 8($sp)	
+			sw $ra, 4($sp)			
+			sw $a0, 0($sp)
+			sub $a1, $s6, $a1
+			li $a0, 16
+			jal pwr
+			lw $a0, 0($sp)
+			lw $ra, 4($sp)
+			lw $a1, 8($sp)
+			addi $sp, $sp, 8
+			mult $v0,$a0
+			mflo $t0
+			add $s7, $s7, $t0
+			addi $a1, $a1, 1
+			j hexSum
+		
+		
+		
+		pwr:	beq $a1,$zero,end_pwr
+			addi $sp, $sp, -4
+			sw $ra, 0($sp)
+			addi $a1, $a1, -1
+			jal pwr
+			mult $v0, $a0
+			mflo $v0
+			lw $ra, 0($sp)
+			addi $sp, $sp, 4
+			jr $ra
+			
+		end_pwr:li $v0, 1
+			jr $ra
+		
+		Err_1:	li $v0, 4
+			la $a0, msg_Error_1
+			syscall
+			j hex			
+		
+		Err_2:	li $v0, 4
+			la $a0, msg_Error_2
+			syscall
+			j hex							
+		
+		Err_3:	li $v0, 4
+			la $a0, msg_3
+			syscall
+			j hexEnd	
+		
+		
+	    Exit_hex:	li $v0, 4
+			la $a0, msg_2
+			syscall
+					
+			li $v0, 1
+			add $a0, $s7, $zero
+			syscall		
+				
+			slt $t0, $s7, $zero
+			bne $t0, $zero, Err_3	 
+			li $s7, 0
+			
+			li $v0, 4
+			la $a0, newLine
+			syscall			 				 	
+				 			 	 			 	 			 	
+	    hexEnd:	j menu
+	    
+	    
+	    
 	opcion3:
 		j terminarPrograma
 	terminarPrograma:
