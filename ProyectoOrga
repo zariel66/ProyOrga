@@ -9,7 +9,7 @@
 	cadena: .space 64
 	msg_1:	.asciiz "\nIngrese un número hexadecimal, o presione enter para obtener el resultado \n"
 	msg_2:  .asciiz "\La suma total de los números ingresados es: "
-	msg_3:  .asciiz "\n La suma excede los 32 bits. El resultado es incorrecto. \n"
+	msg_3:  .asciiz "\n La suma no se puede representar en 32 bits. El resultado es incorrecto. \n"
 	newLine: .asciiz "\n"
 	msg_Error_1: .asciiz "El número ingresado no es hexadecimal.\n"
 	msg_Error_2: .asciiz " \nPor favor, ingrese el prefijo 0x antes del número hexadecimal!\n"
@@ -139,38 +139,54 @@
 			
 	
 	opcion2:
-		hex:	la $a0, msg_1
+	
+		# Este bloque de código: 
+		# Pide un string al usuario;.
+		# Calcula el número de caracteres a convertir.
+		# Convierte cada caracter a su equivalente decimal (i.e 'a'=10);
+		# Convierte el número hexadecimal en decimal (i.e 0xabc = 2748)
+		# Suma el resultado decimal a un acumulador  (i.e 2748 + (0x1+0x1) = 2750)
+		# El acumulador tiene el resultado de la suma
+		# Variables:
+		# $s7 es el acumulador con la respuesta
+		# $s6 = (número de caracteres a convertir) - 1 (i.e 0xabc => $s6 = 2)
+		# $s5 contiene la dirección base del string
+		
+		
+	
+			li $s7, 0			# $s7 es el acumulador con la respuesta.	
+		hex:	la $a0, msg_1		
 			li $v0,4
 			syscall
 
-			li $v0,8
-			la $a0,cadena
-			li $a1,64 
+			li $v0,8			# Solicita el número al usuario.
+			la $a0,cadena			# Guarda el string en memoria
+			li $a1,64 			# Límite de caracteres permitidos
 			syscall				
 																					
-			add $a2, $a0, $0		
+			add $s5, $a0, $0		# Pasa la dirección efectiva del string de $a0 a $s5
 			li $a1, 0
-			lb $a0, 0($a2)	
+			lb $a0, 0($s5)	
 			li $t0, 10
-			beq $a0, $t0, Exit_hex
-			lb $a0, 1($a2)	
-			li $t1, 120
+			beq $a0, $t0, Exit_hex		# Verifica si el usuario solo presiono "enter"
+			lb $a0, 1($s5)			
+			li $t1, 120			# Verifica si el segundo caracter del string es "x". (Para combrobar si es hexadecimal)
 			bne $a0, $t1,Err_2
 			
-	    		li $s6, 0
-	    	strlen:	add $t2, $s6, $a2
+	    		li $s6, 0			# En $s6 se usará para convertir el número de hexadecimal a decimal.
+	    	strlen:	add $t2, $s6, $s5		# Se itera a lo largo del string
 	    		lb $t1,0($t2)
 	    		addi $s6,$s6,1				
 			bne $t1,$t0, strlen	
-			addi $s6, $s6,-4
+			addi $s6, $s6,-4		# Número caracteres a convertir = $s6 + 1
 			
-		hexSum:	add $t0, $a2, $a1
-			lb $a0, 2($t0)		
+		hexSum:	add $t0, $s5, $a1		# Itero por cada caracter del string. $a1 es el iterador.
+			lb $a0, 2($t0)			# Cargo el caracter del string a $a0
 			li $t0, 10
-			beq $a0, 10, hex
+			beq $a0, 10, hex		# Verifico si el caracter es un salto de linea
 							
-		hexVal:	li $t6,96
-			li $t7,64
+		hexVal:	li $t6,96			# Este bloque valida si los caracteres pertecen a la base hexadecimal.
+			li $t7,64			# función lógica => ($a0 > 96 && $a0 <103)||($a0 > 64 && $a0 < 71)||($a0 > 47 && $a0 < 58)
 			li $t8,47
 			slt $t0,$t6,$a0				
 			slti $t1,$a0,103	
@@ -185,7 +201,7 @@
 			or $v0, $t0, $t5
 			beq $v0,$zero,Err_1
 			
-		hexC_0:	li $t6,96
+		hexC_0:	li $t6,96			# Este bloque convierte $a0 a su equivalente decimal. i.e $a0='a'=97(ascii)=10(base10)
 			li $t7,64
 			li $t8,47
 			slt $t0,$t6,$a0				
@@ -203,7 +219,7 @@
 		hexC_2:	addi $a0, $a0, -55
 			j Cont
 			
-		Cont: 	addi $sp, $sp, -12
+		Cont: 	addi $sp, $sp, -12		# Cada valor decimal es multiplicado por 16^i. Donde i= $s6(# de caracteres)-$a1(iterador)
 			sw $a1, 8($sp)	
 			sw $ra, 4($sp)			
 			sw $a0, 0($sp)
@@ -214,15 +230,15 @@
 			lw $ra, 4($sp)
 			lw $a1, 8($sp)
 			addi $sp, $sp, 8
-			mult $v0,$a0
-			mflo $t0
-			add $s7, $s7, $t0
-			addi $a1, $a1, 1
+			mult $v0,$a0			# $a0*(16^i)
+			mflo $t0			
+			add $s7, $s7, $t0		# Sumo el resultado de la multiplicación con el acumulador.
+			addi $a1, $a1, 1		# Incremento el iterador
 			j hexSum
 		
 		
-		
-		pwr:	beq $a1,$zero,end_pwr
+							# Función potencia: $a0^$a1. Es recursiva. (16,$a1)*(16,$a1-1)*...*(16,0)
+		pwr:	beq $a1,$zero,end_pwr		# Caso base ($a1=0)
 			addi $sp, $sp, -4
 			sw $ra, 0($sp)
 			addi $a1, $a1, -1
@@ -233,36 +249,36 @@
 			addi $sp, $sp, 4
 			jr $ra
 			
-		end_pwr:li $v0, 1
+		end_pwr:li $v0, 1			# resultado del caso base (16^0)= 1	
 			jr $ra
 		
-		Err_1:	li $v0, 4
-			la $a0, msg_Error_1
+		Err_1:	li $v0, 4			# Mensajes de Error
+			la $a0, msg_Error_1		# Número no hexadecimal
 			syscall
 			j hex			
 		
 		Err_2:	li $v0, 4
-			la $a0, msg_Error_2
+			la $a0, msg_Error_2		# Prefijo 0x no aparece el número hexadecimal	
 			syscall
 			j hex							
 		
-		Err_3:	li $v0, 4
-			la $a0, msg_3
+		Err_3:	li $v0, 4			# Mensajes
+			la $a0, msg_3			# Suma fuera de rango
 			syscall
 			j hexEnd	
 		
 		
 	    Exit_hex:	li $v0, 4
-			la $a0, msg_2
+			la $a0, msg_2			# Suma total
 			syscall
 					
-			li $v0, 1
+			li $v0, 1			# Impresión del resultado total
 			add $a0, $s7, $zero
 			syscall		
 				
 			slt $t0, $s7, $zero
 			bne $t0, $zero, Err_3	 
-			li $s7, 0
+			li $s7, 0			# Encero el acumulador con la respuesta
 			
 			li $v0, 4
 			la $a0, newLine
