@@ -2,9 +2,9 @@
 	titulo: .asciiz "Proyecto Organización\nPrimer Parcial\n"
 	menuString: .asciiz "\nIngrese una opción del menú\n1.-Suma en Decimal\n2.-Suma en hexadecimal\n3.-Suma Mixta\nIngrese una opción\n"
 	numeroActual: .word #Utilizar s1, contiene el número actual en base a los digitos capturados
-	errorOpcion: .asciiz "\nOPCIÓN INVÁLIDA\n"
+	errorOpcion: .asciiz "\nEL VALOR INGRESADO NO ES UNA OPCIÓN VÁLIDA\n"
 	stringOpcion1: .asciiz "\nIngrese número enteros separados por enter\n"
-	opcionError1: .asciiz "\n¡¡ERROR!!El valor ingresado no es un entero. Vuelva a ingresar un valor:\n"
+	opcionError1: .asciiz "\nEl número ingresado no es entero. Ingrese otro valor:\n"
 	resultadoSuma: .asciiz "\nEl resultado de la suma es:\n"
 	cadena: .space 64
 	msg_1:	.asciiz "\nIngrese un número hexadecimal, o presione enter para obtener el resultado \n"
@@ -13,6 +13,7 @@
 	newLine: .asciiz "\n"
 	msg_Error_1: .asciiz "El número ingresado no es hexadecimal.\n"
 	msg_Error_2: .asciiz " \nPor favor, ingrese el prefijo 0x antes del número hexadecimal!\n"
+	overflowmsg: .asciiz "\nLA SUMA EXCEDIÓ LOS LÍMITES. EL MÁXIMO VALOR POSIBLE ES 7fffffff O 2147483647\n"
 	
 .text
 	#MUESTRA EL SALUDO	
@@ -76,15 +77,15 @@
 			beq $v0,$zero,MostrarResultadoEntero #si retorna 0 muestro el resultado
 			li $t0,-1
 			beq $v0,$t0,loop1
-			add $s0,$s0,$v0
+			addu $s0,$s0,$v0
 			j loop1
 	pedirInputEntero:
 		addi $v0,$zero,8
 		la $a0,cadena
-		li $a1,8 #input de la cadena
+		la $a1,cadena #input de la cadena
 		syscall
 		lb $t0,0($a0)
-		li $t1,'\0'
+		li $t1,'\n'
 		beq $t0,$t1,terminarInput #verifico si el usuario solo dio enter
 		addi $sp,$sp,-4
 		sw $ra,0($sp) #guardo la dirección de retorno en la pila
@@ -136,6 +137,19 @@
 			syscall
 			li $v0,-1
 			jr $ra
+		OVERFLOW:
+			la $a0,overflowmsg
+			li $v0,4 #constante 4 que activa impresion de cadena por pantalla
+			syscall
+			j menu
+	MostrarResultadoEntero:
+		la $a0,resultadoSuma
+		li $v0,4 #constante 4 que activa impresion de cadena por pantalla
+		syscall
+		addi $a0,$s0,0
+		li $v0,1 #constante 1 que activa impresion de entero por pantalla
+		syscall
+		j terminarPrograma
 			
 	
 	opcion2:
@@ -277,15 +291,15 @@
 	terminarPrograma:
 		li $v0,10 #termina el programa
 		syscall
-	MostrarResultadoEntero:
-		la $a0,resultadoSuma
-		li $v0,4 #constante 4 que activa impresion de cadena por pantalla
-		syscall
-		addi $a0,$s0,0
-		li $v0,1 #constante 1 que activa impresion de entero por pantalla
-		syscall
-		j terminarPrograma
-		
+	
+
+.ktext 0x80000180
+
+	
+	mfc0 $k0,$14   # Coprocessor 0 register $14 has address of trapping instruction
+	la $k1,OVERFLOW
+   	mtc0 $k1,$14   # Store new address back into $14        
+        eret  # return from exception, PC <- EPC
 		
 	
 	
