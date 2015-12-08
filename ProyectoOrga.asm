@@ -1,19 +1,19 @@
 .data
-	titulo: .asciiz "Proyecto Organización y Arquitectura de Computadores\nPrimer Parcial\n"
+	titulo: .asciiz "\n---------------------Proyecto Organización y Arquitectura de Computadores---------------------\n     -----------------------------------Primer Parcial-----------------------------------\n"
 	menuString: .asciiz "\nIngrese una opción del menú\n1.-Suma en Decimal\n2.-Suma en hexadecimal\n3.-Suma Mixta\n4.-Salir\n"
 	errorOpcion: .asciiz "\nEl valor ingresado no es una opción válida\n"
 	stringOpcion1: .asciiz "\nIngrese un números enteros , o presione enter para obtener el resultado\n"
 	stringOpcion3: .asciiz "\nIngrese números enteros(1234) o hexacedimales(0xfa) o presione enter para obtener el resultado\n"
-	opcionError1: .asciiz "\nEl valor ingresado no es entero. Ingrese otro valor:\n"
-	opcionError3: .asciiz "\nEl valor ingresado no es entero ni hexadecimal. Ingrese otro valor:\n"
+	opcionError1: .asciiz "El valor ingresado no es entero.Por favor, ingrese otro valor:\n"
+	opcionError3: .asciiz "El valor ingresado no es entero ni hexadecimal.Por favor, ingrese otro valor:\n"
 	cadena: .space 64
 	msg_1:	.asciiz "\nIngrese un número hexadecimal, o presione enter para obtener el resultado \n"
-	msg_2:  .asciiz "\La suma total de los números ingresados es: "
-	msg_3:  .asciiz "\n La suma no se puede representar en 32 bits. El resultado es incorrecto. \n"
+	msg_2:  .asciiz "La sumatoria de los números ingresados es: "
+	msg_3:  .asciiz "\nLa suma no se puede representar en 32 bits.\n"
 	newLine: .asciiz "\n"
-	msg_Error_1: .asciiz "El número ingresado no es hexadecimal.\n"
-	msg_Error_2: .asciiz " \nPor favor, ingrese el prefijo 0x antes del número hexadecimal!\n"
-	overflowmsg: .asciiz "\nLA SUMA EXCEDIÓ LOS LÍMITES. EL MÁXIMO VALOR POSIBLE ES 7fffffff O 2147483647\n"
+	msg_Error_1: .asciiz "El número ingresado no es hexadecimal. Por favor, ingrese otro valor:\n"
+	msg_Error_2: .asciiz "Ingrese el prefijo 0x antes del número hexadecimal.Por favor, ingrese otro valor:\n"
+	overflowmsg: .asciiz "\nLa suma no se puede representar en 32 bits.\n"
 	
 .text
 	#MUESTRA EL SALUDO	
@@ -108,11 +108,11 @@
 		
 	
 			li $s7, 0			# $s7 es el acumulador con la respuesta.	
-		hex:	la $a0, msg_1		
+			la $a0, msg_1		
 			li $v0,4
 			syscall
 
-			li $v0,8			# Solicita el número al usuario.
+		hex:	li $v0,8			# Solicita el número al usuario.
 			la $a0,cadena			# Guarda el string en memoria
 			li $a1,64 			# Límite de caracteres permitidos
 			syscall				
@@ -126,7 +126,7 @@
 			li $t1, 120			# Verifica si el segundo caracter del string es "x". (Para combrobar si es hexadecimal)
 			bne $a0, $t1,Err_2
 			
-	    		li $s6, 0			# En $s6 se usará para convertir el número de hexadecimal a decimal.
+	    		li $s6, 0			# $s6 se usará para convertir el número de hexadecimal a decimal.
 	    	strlen:	add $t2, $s6, $s5		# Se itera a lo largo del string
 	    		lb $t1,0($t2)
 	    		addi $s6,$s6,1				
@@ -184,8 +184,10 @@
 			lw $a1, 8($sp)
 			addi $sp, $sp, 8
 			mult $v0,$a0			# $a0*(16^i)
-			mflo $t0			
-			add $s7, $s7, $t0		# Sumo el resultado de la multiplicación con el acumulador.
+			mflo $t0	
+			slt $t6, $t0, $zero
+			bne $t6, $zero, Err_3	
+			addu $s7, $s7, $t0		# Sumo el resultado de la multiplicación con el acumulador.
 			addi $a1, $a1, 1		# Incremento el iterador
 			j hexSum
 		
@@ -221,16 +223,15 @@
 			j hexEnd	
 		
 		
-	    Exit_hex:	li $v0, 4
+	    Exit_hex:	
+	    		li $v0, 4
 			la $a0, msg_2			# Suma total
 			syscall
 					
-			li $v0, 1			# Impresión del resultado total
+			li $v0, 34			# Impresión del resultado total
 			add $a0, $s7, $zero
 			syscall		
-				
-			slt $t0, $s7, $zero
-			bne $t0, $zero, Err_3	 
+
 			li $s7, 0			# Encero el acumulador con la respuesta
 			
 			li $v0, 4
@@ -393,7 +394,10 @@
 .ktext 0x80000180
 
 	la $k1,OVERFLOW
-  	mtc0 $k1,$14   					#genero la nueva dirección de retorno        
+  	mtc0 $k1,$14   					#genero la nueva dirección de retorno    
+  	
+  	    
+  	            
         eret 						#retorno de la excepción, PC <- EPC
 		
 	
