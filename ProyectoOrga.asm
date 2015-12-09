@@ -9,6 +9,7 @@
 	cadena: .space 64
 	msg_1:	.asciiz "\nIngrese un número hexadecimal, o presione enter para obtener el resultado \n"
 	msg_2:  .asciiz "La sumatoria de los números ingresados es: "
+	msg_2_2: .asciiz "  o en hexadecimal "
 	msg_3:  .asciiz "\nLa suma no se puede representar en 32 bits.\n"
 	newLine: .asciiz "\n"
 	msg_Error_1: .asciiz "El número ingresado no es hexadecimal. Por favor, ingrese otro valor:\n"
@@ -322,8 +323,11 @@
 		lw $ra,0($sp)
 		addi $sp,$sp,12 			#recupero espacio en la pila
 		beq $zero,$v0,notHex
-		sub $t1,$t1,$t0				#recupero el valor actual del iterador		
-		sll $t4,$t4,4 				#multiplico por 16 el valor actual
+		sub $t1,$t1,$t0				#recupero el valor actual del iterador
+		addi $t3,$t4,0
+		sll $t3,$t3,3		
+		sll $t4,$t4,3
+		add $t4,$t4,$t3				#multiplico por 16 el valor actual
   		add $t4,$t4,$t2				#sumo el valor del caracter actual al número anterior
 		addi $t1,$t1,1 				#incremento el iterador
 		j loopHex
@@ -378,6 +382,12 @@
 		syscall
 		addi $a0,$s0,0				#cargo el valor total en el argumento del print
 		li $v0,1 					
+		syscall
+		la $a0,msg_2_2
+		li $v0,4 				#muestro el dialogo del total de la suma entera
+		syscall
+		addi $a0,$s0,0				#cargo el valor total en el argumento del print
+		li $v0,34 				#imprimo el entero en hexadecimal	
 		syscall
 		j menu 
 		
